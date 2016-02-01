@@ -24,8 +24,8 @@ class Reporter (object):
     render = getattr(self.task.method, name, self.no_op_serialize)
     try:
       return self.method.serialize(render(data), self)
-    except error:
-      print("Error serializing data: " + str(data) + " " + str(error))
+    except ValueError as ve:
+      print("Error serializing data: " + str(data) + " " + str(ve))
       return -1   # Just a guess
   def __call__ (self, data):
     self.blob = self.serialize(data)
