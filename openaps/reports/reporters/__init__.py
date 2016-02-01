@@ -22,7 +22,11 @@ class Reporter (object):
   def serialize (self, data):
     name = 'prerender_' + self.report.fields['reporter'].lower( )
     render = getattr(self.task.method, name, self.no_op_serialize)
-    return self.method.serialize(render(data), self)
+    try:
+      return self.method.serialize(render(data), self)
+    except error:
+      print("Error serializing data: " + str(data) + " " + str(error))
+      return -1   # Just a guess
   def __call__ (self, data):
     self.blob = self.serialize(data)
     self.output.write(self.blob)
