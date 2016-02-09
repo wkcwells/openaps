@@ -45,7 +45,9 @@ class scan (Use):
     # print "hahaha"
   def scanner (self):
     from decocare.scan import scan
-    return scan( )
+    scan_results = scan()
+    print("scan results" + str(scan_results))
+    return scan_results
   def main (self, args, app):
     return self.scanner( )
 
@@ -57,6 +59,7 @@ class MedtronicTask (scan):
   record_stats = True
 
   def before_main (self, args, app):
+    print("before_main: " + str(self.device.get('port')))
     self.setup_medtronic( )
     if self.requires_session:
       self.check_session(app)
@@ -128,10 +131,11 @@ class MedtronicTask (scan):
   def setup_medtronic (self):
     log = logging.getLogger(decocare.__name__)
     level = getattr(logging, self.device.get('logLevel', 'WARN'))
-    address = self.device.get('logAddress', '/dev/log')
+    address = self.device.get('logAddress', '/var/run/syslog')
     log.setLevel(level)
     for previous in log.handlers[:]:
       log.removeHandler(previous)
+    print("Logging address: " + str(address));
     log.addHandler(logging.handlers.SysLogHandler(address=address))
     self.uart = stick.Stick(link.Link(self.scanner( )))
     self.uart.open( )
