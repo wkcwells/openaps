@@ -41,6 +41,7 @@ class Use (Subcommand):
     """
       openaps will use this to interface with your app.
     """
+    print("Args: " + str(args))
     self.before_main(args, app)
     output = self.main(args, app)
     self.after_main(args, app)

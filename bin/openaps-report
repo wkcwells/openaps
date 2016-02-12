@@ -75,6 +75,7 @@ class ReportToolApp (cli.ConfigApp):
     output = app(args, self)
     # print output
 
+import os
 
 if __name__ == '__main__':
 
