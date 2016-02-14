@@ -165,7 +165,6 @@ openaps report commands map openaps use commands to filenames:
 if __name__ == '__main__':
 
     app = BaseApp(sys.argv)
-    print("Environment: " + str(os.environ))
     app( )
     sys.exit(0)
 

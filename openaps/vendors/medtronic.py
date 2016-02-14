@@ -60,7 +60,6 @@ class MedtronicTask (scan):
   record_stats = True
 
   def before_main (self, args, app):
-    print("before_main: " + str(self.device.get('port')))
     self.setup_medtronic( )
     if self.requires_session:
       self.check_session(app)
