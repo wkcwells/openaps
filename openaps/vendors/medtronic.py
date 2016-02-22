@@ -69,6 +69,9 @@ class MedtronicTask (scan):
       app.config.save( )
     if self.uart:
       self.uart.close( )
+    if self.pump.link:    #  TODO-KW: need to verify that this won't break anything
+      self.pump.link.close()
+
 
   def get_session_info (self):
     expires = self.device.get('expires', None)
