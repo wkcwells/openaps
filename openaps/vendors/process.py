@@ -95,8 +95,8 @@ class shell (Use):
         command.append(getattr(args, opt))
     command.extend(getattr(args, 'remainder', []))
     command = shlex.split(' '.join(command))
-    proc = subprocess.Popen(command, stdout=PIPE)
-    output, stderr = proc.communicate( )
-    # output = check_output(command, shell=True)
+    #proc = subprocess.Popen(command, stdout=PIPE)
+    #output, stderr = proc.communicate( )
+    output = check_output(command)  # Used to have: shell=True)    # What was wrong with check_output()??  Was there but commented out...
     return output
 

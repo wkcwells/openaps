@@ -34,7 +34,7 @@ def main (args, app):
     """
     # print args
     print(report.format_url( ))
-    repo = app.git_repo( )
+    # gitout # repo = app.git_repo( )
 
     try:
         output = task.method(args, app)
@@ -47,7 +47,7 @@ def main (args, app):
     else:
         reporters.Reporter(report, device, task)(output)
         print('reporting', report.name)
-        repo.git.add([report.name], write_extension_data=False)
+        # gitout # repo.git.add([report.name], write_extension_data=False)
         # XXX: https://github.com/gitpython-developers/GitPython/issues/265o
         # GitPython <  0.3.7, this can corrupt the index
         # repo.index.add([report.name])

@@ -72,11 +72,13 @@ class ConfigApp (Base):
     self.read_config( )
 
   def epilog (self):
-    self.create_git_commit( )
-  def git_repo (self):
-    from git import Repo, GitCmdObjectDB
-    self.repo = getattr(self, 'repo', Repo(os.getcwd( ), odbt=GitCmdObjectDB))
-    return self.repo
+    return # gitout #
+    # gitout # self.create_git_commit( )
+
+#  def git_repo (self):
+#    from git import Repo, GitCmdObjectDB
+#    self.repo = getattr(self, 'repo', Repo(os.getcwd( ), odbt=GitCmdObjectDB))
+#    return self.repo
 
   def create_git_commit (self):
     self.git_repo( )
