@@ -19,7 +19,7 @@ def configure_use_app (app, parser):
   # parser.add_argument('foobar', help="LOOK AT ME")
 
 def configure_add_app (app, parser):
-  parser.add_argument('serial')
+  parser.add_argument('serial', nargs='?', default='')
 
 def configure_app (app, parser):
   if app.parent.name == 'add':
@@ -63,18 +63,36 @@ class MedtronicTask (scan):
       self.check_session(app)
     else:
       self.pump.setModel(number=self.device.get('model', ''))
+    self.save_session = self.requires_session
 
   def after_main (self, args, app):
     if self.save_session:
-      self.device.store(app.config)
-      app.config.save( )
+      self.write_session_file(self.update_session_info(self.session))
+
     if self.uart:
       self.uart.close( )
     if self.pump.link:    #  TODO-KW: need to verify that this won't break anything
       self.pump.link.close()
 
+  def write_session_file (self, session):
+    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'w+') as io:
+      json.dump(session, io)
+
+  def read_session_file (self):
+    session = dict( )
+    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'a+') as io:
+      try:
+        session = json.load(io)
+      except (ValueError), e:
+        pass
+    return session
+
   def get_session_info (self):
-    expires = self.device.get('expires', None)
+
+    session = self.read_session_file( )
+
+    expires = session.get('expires', None)
+
     if expires is not None:
       expires = parse(expires)
 
@@ -85,11 +103,15 @@ class MedtronicTask (scan):
       )
     if expires is None or expires < now or (expires - now).total_seconds() > (60 * self.MAX_SESSION_DURATION):
       fields = self.create_session( )
-      out.update(**self.update_session_info(fields))
+      out.update(**fields)
+
     else:
       out['expires'] = expires
-      out['model'] = self.device.get('model', None)
-    return out
+
+      out['model'] = session.get('model', self.device.get('model', None))
+    session.update(**out)
+    return session
+
 
   def update_session_info (self, fields):
     out = { }
@@ -97,9 +119,8 @@ class MedtronicTask (scan):
     config = self.device
     if uses_extra:
       config = self.device.extra
-    config.add_option('expires', fields['expires'].isoformat( ))
-    config.add_option('model', fields['model'])
-    out['expires'] = fields['expires']
+
+    out['expires'] = fields['expires'].isoformat( )
     out['model'] = fields['model']
     return out
 
@@ -119,15 +140,13 @@ class MedtronicTask (scan):
     return out
   def check_session (self, app):
     self.session = self.get_session_info( )
-    model = self.device.get('model', None)
+    model = self.session.get('model', None)
+
     if model is None:
       model = self.get_model( )
-    self.pump.setModel(number=self.device.get('model', ''))
-    uses_extra = self.device.get('extra', None)
-    config = self.device
-    if uses_extra:
-      config = self.device.extra
-    config.add_option('model', self.device.get('model', model))
+      self.session.update(model=model)
+    self.pump.setModel(number=model)
+
   def get_model (self):
     model = self.pump.read_model( ).getData( )
     return model
@@ -147,6 +166,46 @@ class MedtronicTask (scan):
   def main (self, args, app):
     return self.scanner( )
 
+@use( )
+class config (MedtronicTask):
+  requires_session = False
+
+  def before_main (self, args, app):
+    # self.setup_medtronic( )
+    self.session = self.read_session_file( )
+
+  def configure_app (self, app, parser):
+    parser.add_argument('-M', '--model', default=None)
+    parser.add_argument('-S', '--serial', default='')
+    parser.add_argument('-R', '--reset-expires', action='store_true', default=False)
+    # parser.add_argument('-5', '--G5', dest='model', const='G5', action='store_const', default=None)
+  def main (self, args, app):
+    results = dict(**self.device.extra.fields)
+    results.update(self.session)
+    dirty = False
+    if args.model:
+      results.update(model=args.model)
+      self.session.update(model=args.model)
+      self.device.extra.add_option('model', args.model.upper( ))
+      dirty = True
+    if args.serial:
+      results.update(serial=args.serial)
+      self.device.extra.add_option('serial', args.serial.upper( ))
+      dirty = True
+    self.save_session = False
+    if args.reset_expires:
+      print "resetting {0} session".format(self.device.name)
+      self.session.update(model='', expires=datetime.now( ))
+      self.save_session = True
+
+
+    self.uart = None
+    if dirty:
+      # self.session.update(expires=self.session.get('expires', datetime.now( )))
+      self.device.store(app.config)
+      app.config.save( )
+    return results
+
 class Session (MedtronicTask):
   """ session for pump
   """
@@ -163,7 +222,9 @@ class Session (MedtronicTask):
 
 @use( )
 class model (MedtronicTask):
-  """ Get model number
+  """ Get model number [#oref0] [#recommended] [#safe]
+
+  This is one of the safest commands available.
   """
   def configure_app (self, app, parser):
     pass
@@ -205,9 +266,64 @@ class mytest (MedtronicTask):
   def main (self, args, app):
     return self.pump.model.my_read_settings( )
 
+class key_presser (MedtronicTask):
+  def run_presses (self, recipe):
+    results = [ ]
+    for press in recipe:
+
+      pressed = self.pump.model.press_key(press)
+      results.append(pressed)
+    successes = filter(lambda x: x['received'], results)
+    completed = len(successes) == len(recipe)
+    response = dict(results=results, completed=completed)
+
+    return response
+
+@use( )
+class press_keys (key_presser):
+  """ Press keys
+  """
+
+  def from_ini (self, fields):
+    fields['input'] = fields.get('input', '').upper( ).split(' ')
+    return fields
+  def to_ini (self, args):
+    params = self.get_params(args)
+    params['input'] = ' '.join(params.get('input', [])).upper( )
+    return params
+  def configure_app (self, app, parser):
+    keys = 'ESC ACT UP DOWN EASY'.split(' ')
+    keys.extend([k.lower( ) for k in keys[:]])
+    parser.add_argument('input', nargs=argparse.REMAINDER,  choices=keys)
+    return parser
+
+  def get_params (self, args):
+    # return dict(input=args.input)
+    return dict(input=[k.upper( ) for k in args.input])
+
+
+  def main (self, args, app):
+    params = self.get_params(args)
+    recipe = params.get('input', [ ])
+
+    results = self.run_presses(recipe)
+
+    return results
+
+@use( )
+class test_oref0_compat_menu (key_presser):
+  recipe = [ 'DOWN', 'ESC' ] + ([ 'DOWN' ] * 13 )
+  def main (self, args, app):
+
+    results = self.run_presses(self.recipe)
+
+    return results
+
+
+
 @use( )
 class read_clock (MedtronicTask):
-  """ Read date/time of pump
+  """ Read date/time of pump [#oref0]
   """
   def main (self, args, app):
     return self.pump.model.read_clock( )
@@ -226,15 +342,15 @@ class SelectedNameCommand (MedtronicTask):
 
 @use( )
 class read_temp_basal (SameNameCommand):
-  """ Read temporary basal rates. """
+  """ Read temporary basal rates. [#oref0] """
 
 @use( )
 class read_settings (SameNameCommand):
-  """ Read settings. """
+  """ Read settings. [#oref0] """
 
 @use( )
 class read_carb_ratios (SameNameCommand):
-  """ Read carb_ratios. """
+  """ Read carb_ratios. [#oref0] """
 
 @use( )
 class read_basal_profile_std (SameNameCommand):
@@ -250,7 +366,7 @@ class read_basal_profile_B (SameNameCommand):
 
 @use( )
 class read_selected_basal_profile (SameNameCommand):
-  """ Fetch the currently selected basal profile. """
+  """ Fetch the currently selected basal profile. [#oref0] """
 
 @use( )
 class read_current_glucose_pages (SameNameCommand):
@@ -274,11 +390,11 @@ class resume_pump (suspend_pump):
 
 @use( )
 class read_battery_status (SameNameCommand):
-  """ Check battery status. """
+  """ Check battery status. [#oref0] """
 
 @use( )
 class read_bg_targets (SelectedNameCommand):
-  """ Read bg targets. """
+  """ Read bg targets. [#oref0] """
   selected = 'read_bg_targets'
 
 @use( )
@@ -288,7 +404,7 @@ class read_insulin_sensitivies (SameNameCommand):
 
 @use( )
 class read_insulin_sensitivities (SameNameCommand):
-  """ Read insulin sensitivities. """
+  """ Read insulin sensitivities. [#oref0] """
 
 
 @use( )
@@ -318,9 +434,69 @@ class InputProgramRequired (MedtronicTask):
     program.update(timestamp=datetime.now( ), **results)
     return program
 
+def parse_clock (candidate):
+  if candidate.lower( ) in ['now']:
+    return datetime.now( )
+  return parse(candidate)
+@use( )
+class set_clock (InputProgramRequired):
+  """ Set clock.
+
+
+  -------------------
+
+
+  input should be the name of a json file, or `-` for stdin.
+  The json file should contain a key named `clock` with the new
+  requested value formatted as ISO 8601 including seconds.
+
+
+      { "clock": "2016-03-14T14:23:40" }
+
+
+  -------------------
+
+
+  `--to` switch
+  -------------------
+
+
+  Alternatively, the `--to` switch maybe used:
+  The keyword `now` may be given to automatically generate a request
+  using the system's current time.  Otherwise, the value must be
+  something that can be parsed as an ISO 8601 formatted time including
+  the seconds.
+
+
+      --to now
+      --to $(date -Iseconds)
+      --to 2016-03-14T14:29:41-0700
+
+  """
+  def get_params (self, args):
+    return dict(input=args.input, to=args.to)
+  def configure_app (self, app, parser):
+    parser.add_argument('input', nargs='?', default=None)
+    # parser.add_argument('input', nargs='?', default='-')
+    parser.add_argument('--to', default=None)
+  def upload_program (self, program):
+    if not program.get('clock', None):
+      print "Bad input"
+      raise Exception("Bad input, missing clock definition: {0}".format(program.get('clock')))
+    return self.pump.model.set_clock(**program)
+    # return dict(test_ok=dict(**program))
+  def get_program (self, args):
+    params = self.get_params(args)
+    program = dict(clock=None)
+    if params.get('to', None) is None and params.get('input'):
+      program.update(clock=parse(json.load(argparse.FileType('r')(params.get('input')))))
+    else:
+      if params.get('to'):
+        program.update(clock=parse_clock(params.get('to')))
+    return program
 @use( )
 class set_temp_basal (InputProgramRequired):
-  """ Set temporary basal rates.
+  """ Set temporary basal rates. [#oref0]
 
   Requires json input with the following keys defined:
     * `temp` - the type of temporary rate, `percent` or `absolute`
@@ -351,7 +527,15 @@ class set_temp_basal (InputProgramRequired):
 
 @use( )
 class bolus (InputProgramRequired):
-  """ Send bolus.
+  """Send bolus command. [#warning!!!]
+
+  Beware! This is a powerful command because it can give a lot of
+  insulin.  Please be careful!
+  Not a part of oref0.
+
+
+  -----------------------
+
 
   Requires json input with the following keys defined:
     * `units` - Number of units to bolus.

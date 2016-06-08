@@ -16,7 +16,7 @@ By proceeding using these tools or any piece within, you agree to the
 copyright (see LICENSE.txt for more information) and release any
 contributors from liability. 
 
-Check out [the openaps docs] (https://openaps.gitbooks.io/building-an-open-artificial-pancreas-system/content/index.html) to help get you started.
+Check out [the openaps docs][the openaps docs] to help get you started.
 
 *Note:* This is intended to be a set of tools to support a self-driven DIY
 implementation and any person choosing to use these tools is solely
@@ -38,6 +38,7 @@ contribute in other ways.
 [GettingStarted]: https://github.com/openaps/openaps/wiki/GettingStarted
 [wiki]: https://github.com/openaps/openaps/wiki
 [proposal]: https://gist.github.com/bewest/a690eaf35c69be898711
+[the openaps docs]: https://github.com/openaps/docs
 
 ![openaps loop hardware](https://cloud.githubusercontent.com/assets/394179/9372378/c2023bc2-4692-11e5-8254-fe940f847536.png)
 
@@ -58,6 +59,13 @@ This is not an artificial pancreas, but rather tools which independently allow:
 There are two ways to install openaps, from source, and as a python package via
 setuptools.
 
+The following apt-get dependencies are required (they can be installed through
+variety of means, in debian/ubuntu and apt based systems the following packages
+are recommended/required:
+
+    sudo apt-get install python python-dev python-setuptools python-software-properties python-numpy
+
+
 #### From source
 
 See [GettingStarted][GettingStarted] for more important information
@@ -70,13 +78,7 @@ clone this repo, and issue:
 
 To [install from pypi](https://pypi.python.org/pypi/openaps):
 
-    sudo easy_install -Z openaps
-
-The following apt-get dependencies are required (they can be installed through
-variety of means, in debian/ubuntu and apt based systems the following packages
-are recommended/required:
-
-    sudo apt-get install python python-dev python-setuptools python-software-properties python-numpy
+    sudo pip install -U openaps
 
 This installs `openaps` system wide.
 Do not use `openaps` commands in the the openaps repo.  Only use the
@@ -343,4 +345,28 @@ All commands support `-h` and `--help` output.
 
     optional arguments:
       -h, --help            show this help message and exit
+
+## License
+MIT License
+
+Copyright (c) 2016 Ben West
+Copyright (c) 2015 Ben West
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 

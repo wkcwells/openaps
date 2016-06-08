@@ -22,12 +22,12 @@ def main (args, app):
     report =  app.actions.selected(args).reports[spec]
     device = app.devices[report.fields['device']]
     task = app.actions.commands['add'].usages.commands[device.name].method.commands[report.fields['use']]
-    # print task.name, task.usage, task.method
+    # print(task.name, task.usage, task.method, report.fields, app.inputs)
     # print device.name, device
     # print report.name, report.fields
     # XXX.bewest: very crude, need to prime the Use's args from the config
     app.parser.set_defaults(**task.method.from_ini(report.fields))
-    args, extra = app.parser.parse_known_args( )
+    args, extra = app.parser.parse_known_args(app.inputs)
     """
     for k, v in report.fields.items( ):
       setattr(args, k, v)
@@ -47,7 +47,7 @@ def main (args, app):
     else:
         reporters.Reporter(report, device, task)(output)
         print('reporting', report.name)
-        repo.git.add([report.name])
+        repo.git.add([report.name], write_extension_data=False)
         # XXX: https://github.com/gitpython-developers/GitPython/issues/265o
         # GitPython <  0.3.7, this can corrupt the index
         # repo.index.add([report.name])
