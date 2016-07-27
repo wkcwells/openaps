@@ -80,10 +80,11 @@ class MedtronicTask (scan):
 
   def read_session_file (self):
     session = dict( )
-    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'a+') as io:
+    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'r') as io:
       try:
         session = json.load(io)
       except (ValueError), e:
+        print("WARNING: No JSON session object in session file.")
         pass
     return session
 
