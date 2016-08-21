@@ -13,6 +13,7 @@ from decocare import stick, session, link, commands, history
 from datetime import datetime
 from dateutil import relativedelta
 from dateutil.parser import parse
+import time
 
 def configure_use_app (app, parser):
   pass
@@ -51,6 +52,7 @@ class scan (Use):
 
 import logging
 import logging.handlers
+
 class MedtronicTask (scan):
   MAX_SESSION_DURATION = 10
   requires_session = True
@@ -66,89 +68,100 @@ class MedtronicTask (scan):
     self.save_session = self.requires_session
 
   def after_main (self, args, app):
-    if self.save_session:
-      self.write_session_file(self.update_session_info(self.session))
+    # if self.save_session:
+    #   self.write_session_file(self.update_session_info(self.session))
+
+    # Are we really using a session object?  YES because stick.Pump IS a session.Pump
+    self.pump.set_last_command_time(time.time())    # NOTE XX: Need to protect this as it will only work for mmeowlink
 
     if self.uart:
       self.uart.close( )
     if self.pump.link:    #  TODO-KW: need to verify that this won't break anything
       self.pump.link.close()
 
-  def write_session_file (self, session):
-    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'w+') as io:
-      json.dump(session, io)
+  # def write_session_file (self, session):
+  #   with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'w+') as io:
+  #     json.dump(session, io)
+  #
+  # def read_session_file (self):
+  #   session = dict( )
+  #   try:
+  #     with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'r') as io:
+  #       try:
+  #         session = json.load(io)
+  #       except ValueError as e:
+  #         print("WARNING: No JSON session object in session file.")
+  #         pass
+  #   except IOError as e:  # # Not available until Python 3: FileNotFoundError as e:
+  #     pass    # Assume this is a 'file not found' - could check for ENOENT
+  #   return session
+  #
+  # def get_session_info (self):
+  #
+  #   session = self.read_session_file( )
+  #
+  #   expires = session.get('expires', None)
+  #
+  #   if expires is not None:
+  #     expires = parse(expires)
+  #
+  #   now = datetime.now( )
+  #   out = dict(device=self.device.name
+  #     , vendor=__name__
+  #     , used=now
+  #     )
+  #
+  #   if expires is None or expires < now or (expires - now).total_seconds() > (60 * self.MAX_SESSION_DURATION):
+  #     fields = self.create_session( )
+  #     out.update(**fields)
+  #
+  #   else:
+  #     out['expires'] = expires
+  #
+  #     out['model'] = session.get('model', self.device.get('model', None))
+  #   session.update(**out)
+  #   return session
+  #
+  #
+  # def update_session_info (self, fields):
+  #   out = { }
+  #   uses_extra = self.device.get('extra', None)
+  #   config = self.device
+  #   if uses_extra:
+  #     config = self.device.extra
+  #
+  #   out['expires'] = fields['expires'].isoformat( )
+  #   out['model'] = fields['model']
+  #   return out
+  #
+  # def create_session (self):
+  #   minutes = int(self.device.get('minutes', 3))
+  #   now = datetime.now( )
+  #   self.pump.power_control(minutes=minutes)
+  #   model = self.get_model( )
+  #   offset = relativedelta.relativedelta(minutes=minutes) + relativedelta.relativedelta(minutes=-1)
+  #   out = dict(device=self.device.name
+  #     , model=model
+  #     , vendor=__name__
+  #     , created_at=now
+  #     , started=now
+  #     , expires=now + offset
+  #     )
+  #   return out
 
-  def read_session_file (self):
-    session = dict( )
-    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'r') as io:
-      try:
-        session = json.load(io)
-      except (ValueError), e:
-        print("WARNING: No JSON session object in session file.")
-        pass
-    return session
-
-  def get_session_info (self):
-
-    session = self.read_session_file( )
-
-    expires = session.get('expires', None)
-
-    if expires is not None:
-      expires = parse(expires)
-
-    now = datetime.now( )
-    out = dict(device=self.device.name
-      , vendor=__name__
-      , used=now
-      )
-    if expires is None or expires < now or (expires - now).total_seconds() > (60 * self.MAX_SESSION_DURATION):
-      fields = self.create_session( )
-      out.update(**fields)
-
-    else:
-      out['expires'] = expires
-
-      out['model'] = session.get('model', self.device.get('model', None))
-    session.update(**out)
-    return session
-
-
-  def update_session_info (self, fields):
-    out = { }
-    uses_extra = self.device.get('extra', None)
-    config = self.device
-    if uses_extra:
-      config = self.device.extra
-
-    out['expires'] = fields['expires'].isoformat( )
-    out['model'] = fields['model']
-    return out
-
-  def create_session (self):
-    minutes = int(self.device.get('minutes', 3))
-    now = datetime.now( )
-    self.pump.power_control(minutes=minutes)
-    model = self.get_model( )
-    offset = relativedelta.relativedelta(minutes=minutes) + relativedelta.relativedelta(minutes=-1)
-    out = dict(device=self.device.name
-      , model=model
-      , vendor=__name__
-      , created_at=now
-      , started=now
-      , expires=now + offset
-      )
-    return out
   def check_session (self, app):
-    self.session = self.get_session_info( )
-    model = self.session.get('model', None)
-
-    if model is None:
-      model = self.get_model( )
-      self.session.update(model=model)
+    minutes = int(self.device.get('minutes', 3))
+    model = self.pump.power_control(minutes=minutes)
+    # self.session = self.get_session_info( )
+    # model = self.session.get('model', None)
+    #
+    # if model is None:
+    #   model = self.get_model( )
+    #   self.session.update(model=model)
     self.pump.setModel(number=model)
 
   def get_model (self):
+    print("Getting pump model")
     model = self.pump.read_model( ).getData( )
     return model
   def setup_medtronic (self):
