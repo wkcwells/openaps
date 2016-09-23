@@ -75,7 +75,7 @@ class MedtronicTask (scan):
       self.pump.link.close()
 
   def write_session_file (self, session):
-    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'w+') as io:
+    with open(self.device.get('session', '{0}-session.json'.format(self.device.name)), 'w') as io:
       json.dump(session, io)
 
   def read_session_file (self):
@@ -96,6 +96,7 @@ class MedtronicTask (scan):
 
     if expires is not None:
       expires = parse(expires)
+      print("Session found.  Expires: " + str(expires))
 
     now = datetime.now( )
     out = dict(device=self.device.name
